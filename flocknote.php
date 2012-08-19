@@ -6,7 +6,7 @@
  *
  * The official Flocknote API integration SDK for PHP.
  *
- * @version 1.0-beta1
+ * @version 1.0-beta2
  * @see http://www.flocknote.com/help/api
  * @author Jeff Geerling
  */
@@ -36,6 +36,13 @@ class Flocknote {
   public function setUserCredentials($username, $password) {
     $this->username = $username;
     $this->password = $password;
+  }
+
+  /**
+   * Set alternate endpoint (only used for testing).
+   */
+  public function setEndpoint($endpoint) {
+    $this->endpoint = $endpoint;
   }
 
   /**
@@ -149,6 +156,44 @@ class Flocknote {
     $this->id = NULL;
     $this->method = NULL;
     $this->sub_method = NULL;
+  }
+
+  /**
+   * Check a given array for given required keys.
+   *
+   * Each key must exist, and a value must be given for the key, otherwise, an
+   * error message will be returned.
+   *
+   * @param $type
+   *   The type of array, used for building message (e.g. 'Note' or 'Member').
+   * @param $array
+   *   Array to be checked.
+   * @param $fields
+   *   Array keys that should appear in $array.
+   *
+   * @return (mixed)
+   *   FALSE if all keys are found. Error message (string) if a key is missing.
+   */
+  protected function checkArrayRequiredKeys($type, $array, $keys) {
+    $missing_keys = array();
+
+    foreach ($keys as $key) {
+      if (empty($array[$key])) {
+        $missing_keys[] = $key;
+      }
+    }
+
+    // Return a message dependent on the number of missing keys found.
+    $count = count($missing_keys);
+    if ($count == 0) {
+      return FALSE;
+    }
+    elseif ($count == 1) {
+      return $type . " array is missing key: " . $missing_keys[0];
+    }
+    else {
+      return $type . " array is missing keys: " . implode(', ', $missing_keys);
+    }
   }
 
   /**
@@ -285,8 +330,8 @@ class Flocknote {
    *
    * @return (array)
    *   Same array passed in, and will include 'id' in array if note was created
-   *   successfully. If not was not created successfully, the array will include
-   *   an 'error' with a message.
+   *   successfully. If note was not created successfully, the array will
+   *   include an 'error' with a message.
    */
   public function addNote($note = array()) {
     // If there's already an ID set, someone's trying to add a note that exists!
@@ -294,9 +339,14 @@ class Flocknote {
       return $note;
     }
 
-    // Make sure a list_id, title and body were passed in.
-    if (empty($note['list_id']) || empty($note['title']) || empty($note['body'])) {
-      $note['error'] = 'Note was missing either list_id, title, or body values.';
+    // Make sure the proper fields were passed in.
+    $required = array(
+      'list_id',
+      'title',
+      'body',
+    );
+    if ($error_message = $this->checkArrayRequiredKeys('Note', $note, $required)) {
+      $note['error'] = $error_message;
       return $note;
     }
 
@@ -448,5 +498,50 @@ class Flocknote {
     // Send the request and return the result body if member is found.
     $response = $this->sendRequest();
     return $this->returnResponse($response);
+  }
+
+  /**
+   * Add a member.
+   *
+   * @param $member
+   *   Array of member information to be saved. Must include at least:
+   *     - first_name
+   *     - last_name
+   *     - email
+   *     - password
+   *     - list_id
+   *
+   * @return (array)
+   *   Same array passed in, and will include 'id' in array if member was
+   *   created successfully. If member was not created successfully, the array
+   *   will include an 'error' with a message.
+   */
+  public function addMember($member = array()) {
+    // If there's already an ID set, someone's trying to add a member that
+    // exists!
+    if (isset($member['id'])) {
+      return $member;
+    }
+
+    // Make sure the proper fields were passed in.
+    $required = array(
+      'first_name',
+      'last_name',
+      'email',
+      'password',
+      'list_id',
+    );
+    if ($error_message = $this->checkArrayRequiredKeys('Member', $member, $required)) {
+      $member['error'] = $error_message;
+      return $member;
+    }
+
+    $this->method = 'members';
+    $this->operation = 'POST';
+
+    // Build the request.
+    $this->setBody($member);
+    $response = $this->sendRequest();
+    return $this->returnResponse($response, 201);
   }
 }
