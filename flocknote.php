@@ -256,9 +256,8 @@ class Flocknote {
   /**
    * Take a given response, and return the result, or FALSE.
    *
-   * Use this method to ensure the response is 200 OK and the response has some
-   * JSON content. If you're not expecting one of these two things, DON'T use
-   * this method.
+   * Use this method to ensure the response is what you expect and has some JSON
+   * content. Only use this method if you're expecting this type of response.
    *
    * @param $result
    *   The result of an API request, as returned by sendRequest().
