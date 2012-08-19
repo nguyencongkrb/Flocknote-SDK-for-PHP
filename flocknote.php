@@ -409,7 +409,7 @@ class Flocknote {
     $this->id = $id;
     $this->sub_method = 'members';
 
-    // Send a request and return the result body if notes were found.
+    // Send a request and return the result body if member was found.
     $response = $this->sendRequest();
     return $this->returnResponse($response);
   }
@@ -428,7 +428,7 @@ class Flocknote {
     $this->id = $id;
     $this->sub_method = 'permissions';
 
-    // Send a request and return the result body if notes were found.
+    // Send a request and return the result body if permissions were found.
     $response = $this->sendRequest();
     return $this->returnResponse($response);
   }
@@ -474,7 +474,7 @@ class Flocknote {
   public function getNetworksForCurrentMember() {
     $this->method = 'networks';
 
-    // Send the request and return the result body if network is found.
+    // Send the request and return the result body if networks are found.
     $response = $this->sendRequest();
     return $this->returnResponse($response);
   }
