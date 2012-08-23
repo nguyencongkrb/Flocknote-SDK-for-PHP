@@ -6,7 +6,7 @@
  *
  * The official Flocknote API integration SDK for PHP.
  *
- * @version 1.0-beta2
+ * @version 1.0-beta3
  * @see http://www.flocknote.com/help/api
  * @author Jeff Geerling
  */
@@ -156,124 +156,6 @@ class Flocknote {
     $this->id = NULL;
     $this->method = NULL;
     $this->sub_method = NULL;
-  }
-
-  /**
-   * Check a given array for given required keys.
-   *
-   * Each key must exist, and a value must be given for the key, otherwise, an
-   * error message will be returned.
-   *
-   * @param $type
-   *   The type of array, used for building message (e.g. 'Note' or 'Member').
-   * @param $array
-   *   Array to be checked.
-   * @param $fields
-   *   Array keys that should appear in $array.
-   *
-   * @return (mixed)
-   *   FALSE if all keys are found. Error message (string) if a key is missing.
-   */
-  protected function checkArrayRequiredKeys($type, $array, $keys) {
-    $missing_keys = array();
-
-    foreach ($keys as $key) {
-      if (empty($array[$key])) {
-        $missing_keys[] = $key;
-      }
-    }
-
-    // Return a message dependent on the number of missing keys found.
-    $count = count($missing_keys);
-    if ($count == 0) {
-      return FALSE;
-    }
-    elseif ($count == 1) {
-      return $type . " array is missing key: " . $missing_keys[0];
-    }
-    else {
-      return $type . " array is missing keys: " . implode(', ', $missing_keys);
-    }
-  }
-
-  /**
-   * Send an API request with certain parameters.
-   */
-  protected function sendRequest() {
-    $parameters = array(
-      'app_id' => $this->api_app_id,
-      'key' => $this->api_key,
-      'user' => $this->username,
-      'pass' => $this->password,
-    );
-
-    // Build the request URL.
-    $url = $this->endpoint; // Base url.
-    $url .= $this->method; // Add request method.
-    // If there's a particular ID, add it to the URL.
-    if (!empty($this->id)) {
-      $url .= '/' . $this->id;
-    }
-    // If there's a sub-method, add it to the URL.
-    if (!empty($this->sub_method)) {
-      $url .= '/' . $this->sub_method;
-    }
-    $url .= '?' . http_build_query($parameters); // Add query params.
-
-    // Set the proper request header.
-    $header = array(
-      'Content-Type: application/json',
-      'Content-Length: ' . strlen($this->body),
-    );
-
-    // Set up the request with cURL.
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, $header);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
-    // Add request body and set operation to POST if there is a body to POST.
-    if ($this->operation == 'POST' && !empty($this->body)) {
-      curl_setopt($ch, CURLOPT_POST, TRUE);
-      curl_setopt($ch, CURLOPT_POSTFIELDS, $this->body);
-    }
-
-    // Send the request.
-    $response = curl_exec($ch);
-    $info = curl_getinfo($ch);
-    curl_close($ch);
-
-    // Pass back the result.
-    return array(
-      'response' => json_decode($response, TRUE),
-      'http_code' => $info['http_code'],
-      'content_type' => $info['content_type'],
-      'content_length' => $info['download_content_length'],
-      'total_time' => $info['total_time'],
-      'request_url' => $info['url'],
-    );
-  }
-
-  /**
-   * Take a given response, and return the result, or FALSE.
-   *
-   * Use this method to ensure the response is what you expect and has some JSON
-   * content. Only use this method if you're expecting this type of response.
-   *
-   * @param $result
-   *   The result of an API request, as returned by sendRequest().
-   * @param $success
-   *   HTTP code expected if the result is successful.
-   *
-   * @return (mixed)
-   *   JSON response data (array) if given, otherwise FALSE if the response was
-   *   invalid.
-   */
-  protected function returnResponse($response, $success = 200) {
-    // Make sure response returned proper code, and response has content.
-    if ($response['http_code'] == $success && !empty($response['response'])) {
-      return $response['response'];
-    }
-    return FALSE;
   }
 
   /**
@@ -503,12 +385,12 @@ class Flocknote {
    * Add a member.
    *
    * @param $member
-   *   Array of member information to be saved. Must include at least:
+   *   Array of member information to be saved. Keys include:
    *     - first_name
    *     - last_name
-   *     - email
+   *     - email (required)
    *     - password
-   *     - list_id
+   *     - list_id (required)
    *
    * @return (array)
    *   Same array passed in, and will include 'id' in array if member was
@@ -524,10 +406,7 @@ class Flocknote {
 
     // Make sure the proper fields were passed in.
     $required = array(
-      'first_name',
-      'last_name',
       'email',
-      'password',
       'list_id',
     );
     if ($error_message = $this->checkArrayRequiredKeys('Member', $member, $required)) {
@@ -542,5 +421,123 @@ class Flocknote {
     $this->setBody($member);
     $response = $this->sendRequest();
     return $this->returnResponse($response, 201);
+  }
+
+  /**
+   * Check a given array for given required keys.
+   *
+   * Each key must exist, and a value must be given for the key, otherwise, an
+   * error message will be returned.
+   *
+   * @param $type
+   *   The type of array, used for building message (e.g. 'Note' or 'Member').
+   * @param $array
+   *   Array to be checked.
+   * @param $fields
+   *   Array keys that should appear in $array.
+   *
+   * @return (mixed)
+   *   FALSE if all keys are found. Error message (string) if a key is missing.
+   */
+  protected function checkArrayRequiredKeys($type, $array, $keys) {
+    $missing_keys = array();
+
+    foreach ($keys as $key) {
+      if (empty($array[$key])) {
+        $missing_keys[] = $key;
+      }
+    }
+
+    // Return a message dependent on the number of missing keys found.
+    $count = count($missing_keys);
+    if ($count == 0) {
+      return FALSE;
+    }
+    elseif ($count == 1) {
+      return $type . " array is missing key: " . $missing_keys[0];
+    }
+    else {
+      return $type . " array is missing keys: " . implode(', ', $missing_keys);
+    }
+  }
+
+  /**
+   * Send an API request with certain parameters.
+   */
+  protected function sendRequest() {
+    $parameters = array(
+      'app_id' => $this->api_app_id,
+      'key' => $this->api_key,
+      'user' => $this->username,
+      'pass' => $this->password,
+    );
+
+    // Build the request URL.
+    $url = $this->endpoint; // Base url.
+    $url .= $this->method; // Add request method.
+    // If there's a particular ID, add it to the URL.
+    if (!empty($this->id)) {
+      $url .= '/' . $this->id;
+    }
+    // If there's a sub-method, add it to the URL.
+    if (!empty($this->sub_method)) {
+      $url .= '/' . $this->sub_method;
+    }
+    $url .= '?' . http_build_query($parameters); // Add query params.
+
+    // Set the proper request header.
+    $header = array(
+      'Content-Type: application/json',
+      'Content-Length: ' . strlen($this->body),
+    );
+
+    // Set up the request with cURL.
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $header);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
+    // Add request body and set operation to POST if there is a body to POST.
+    if ($this->operation == 'POST' && !empty($this->body)) {
+      curl_setopt($ch, CURLOPT_POST, TRUE);
+      curl_setopt($ch, CURLOPT_POSTFIELDS, $this->body);
+    }
+
+    // Send the request.
+    $response = curl_exec($ch);
+    $info = curl_getinfo($ch);
+    curl_close($ch);
+
+    // Pass back the result.
+    return array(
+      'response' => json_decode($response, TRUE),
+      'http_code' => $info['http_code'],
+      'content_type' => $info['content_type'],
+      'content_length' => $info['download_content_length'],
+      'total_time' => $info['total_time'],
+      'request_url' => $info['url'],
+    );
+  }
+
+  /**
+   * Take a given response, and return the result, or FALSE.
+   *
+   * Use this method to ensure the response is what you expect and has some JSON
+   * content. Only use this method if you're expecting this type of response.
+   *
+   * @param $result
+   *   The result of an API request, as returned by sendRequest().
+   * @param $success
+   *   HTTP code expected if the result is successful.
+   *
+   * @return (mixed)
+   *   JSON response data (array) if given, otherwise FALSE if the response was
+   *   invalid.
+   */
+  protected function returnResponse($response, $success = 200) {
+    // Make sure response returned proper code, and response has content.
+    if ($response['http_code'] == $success && !empty($response['response'])) {
+      return $response['response'];
+    }
+    return FALSE;
   }
 }
